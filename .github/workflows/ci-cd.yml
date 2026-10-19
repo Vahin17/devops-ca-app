@@ -11,10 +11,11 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   test-and-build:
-    name: Test and Build Application
+    name: Test, Build and Publish Docker Image
     runs-on: ubuntu-latest
 
     steps:
@@ -36,5 +37,20 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
       - name: Build Docker image
-        run: docker build -t devops-ca-app:${{ github.sha }} .
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker build \
+            -t ghcr.io/vahin17/devops-ca-app:latest \
+            -t ghcr.io/vahin17/devops-ca-app:${{ github.sha }} \
+            .
+
+      - name: Publish Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push ghcr.io/vahin17/devops-ca-app:latest
+          docker push ghcr.io/vahin17/devops-ca-app:${{ github.sha }}
